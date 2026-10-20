@@ -33,14 +33,13 @@ EXCLUDE=(
   # (they need Pinocchio/Coal, which the lab computers do not have)
   xsarm_scripts/supervisor/build_acm.py
   xsarm_scripts/supervisor/fit_capsules.py
-  # GUIs and teleoperation (the lab computers run the supervisor, scripts and work envelope)
-  xsarm_scripts/joint_gui.py
+  # GUIs and teleoperation (the lab computers run the supervisor, scripts and work envelope;
+  # joint_gui stays, for trying the work envelope)
   xsarm_scripts/analytical_ik_gui.py
   xsarm_scripts/analytical_ik.py
   xsarm_scripts/ik_gui.py
   xsarm_scripts/moveit_ik_gui.py
   xsarm_scripts/xsarm_jog.py
-  launch/joint_gui.launch.py
   launch/analytical_ik_gui.launch.py
   launch/analytical_ik_gui_sim_unsafe.launch.py
   launch/xsarm_jog.launch.py
@@ -61,7 +60,7 @@ EXCLUDE=(
 EXCLUDED_ENTRY_POINTS=(
   sim_harness acceptance_run collision_prone_moves traj_timing_check limit_probe
   stop_distance_check current_profile current_stop_check feedback_loss_check bin_pick_place_demo
-  joint_gui analytical_ik_gui ik_gui moveit_ik_gui xsarm_jog
+  analytical_ik_gui ik_gui moveit_ik_gui xsarm_jog
 )
 
 COMMIT="$(git -C "$SRC" rev-parse --short HEAD)"
@@ -77,7 +76,7 @@ for ep in "${EXCLUDED_ENTRY_POINTS[@]}"; do
 done
 sed -i "/worlds\/\*\.world/d; /rviz\/\*\.rviz/d; /tests_require=/d" "$OUT/setup.py"
 
-# dependencies of what is left (no tests, GUIs, MoveIt or joystick); rosdep installs them
+# dependencies of what is left (no tests, MoveIt or joystick); rosdep installs them
 python3 - "$OUT/package.xml" <<'EOF2'
 import re, sys
 path = sys.argv[1]
@@ -85,7 +84,7 @@ deps = ['rclpy', 'launch', 'launch_ros', 'ament_index_python', 'std_msgs', 'std_
         'sensor_msgs', 'geometry_msgs', 'interbotix_xs_msgs', 'interbotix_xs_modules',
         'interbotix_common_modules', 'interbotix_xs_sdk', 'interbotix_xsarm_control',
         'interbotix_xsarm_descriptions', 'urdfdom_py', 'xacro', 'python3-numpy',
-        'python3-scipy', 'python3-yaml']
+        'python3-scipy', 'python3-yaml', 'python3-tk']
 text = open(path).read()
 text = re.sub(r'\n(\s*<(exec|test)_depend>[^<]*</(exec|test)_depend>\n?)+\s*\n(?=\s*<export>)',
               '\n\n' + ''.join(f'  <exec_depend>{d}</exec_depend>\n' for d in deps) + '\n',
@@ -95,7 +94,7 @@ open(path, 'w').write(text)
 EOF2
 
 # every module that stays must not import one that was removed, or a dependency dropped above
-REMOVED='joint_gui|analytical_ik|ik_gui|moveit_ik_gui|xsarm_jog|sim_harness|build_acm|fit_capsules|bin_pick_place_demo|acceptance|collision_prone_moves|traj_timing_check|limit_probe|stop_distance_check|current_profile|current_stop_check|feedback_loss_check|tkinter|tf_transformations|interbotix_moveit_interface'
+REMOVED='analytical_ik|ik_gui|moveit_ik_gui|xsarm_jog|sim_harness|build_acm|fit_capsules|bin_pick_place_demo|acceptance|collision_prone_moves|traj_timing_check|limit_probe|stop_distance_check|current_profile|current_stop_check|feedback_loss_check|tf_transformations|interbotix_moveit_interface'
 if grep -rnE "^\s*(from|import) \S*($REMOVED)|executable='($REMOVED)'" --include=*.py "$OUT"; then
   echo "ERROR: the lines above use something that was removed" >&2
   exit 1

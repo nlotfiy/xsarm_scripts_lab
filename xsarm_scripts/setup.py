@@ -23,6 +23,7 @@ setup(
     entry_points={
         'console_scripts': [
             'fk_script = xsarm_scripts.fk_script:main',
+            'joint_gui = xsarm_scripts.joint_gui:main',
             'lab_template = xsarm_scripts.lab_template:main',
             'bartender_supervised = xsarm_scripts.bartender_supervised:main',
             'elbow_range_demo = xsarm_scripts.elbow_range_demo:main',

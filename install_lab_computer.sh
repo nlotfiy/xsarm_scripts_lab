@@ -78,7 +78,7 @@ if ! dpkg -s ros2-apt-source >/dev/null 2>&1; then
 fi
 apt-get update
 apt-get install -y ros-humble-desktop ros-dev-tools python3-rosdep python3-pip \
-  python3-colcon-common-extensions python3-numpy python3-scipy python3-yaml python3-transforms3d \
+  python3-colcon-common-extensions python3-numpy python3-scipy python3-yaml python3-transforms3d python3-tk \
   ros-humble-ros2-control-test-assets   # interbotix_xs_ros_control needs it but does not declare it
 
 echo "== 2. modern_robotics, system-wide (the Interbotix installer puts it in ~/.local)"

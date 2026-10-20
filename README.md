@@ -2,7 +2,7 @@
 
 Lab-computer copy of `xsarm_scripts` for the Interbotix vx300s: the supervisor, the work
 envelope, the software e-stop, the driver launch (`arm.launch.py` with `driver_guard`) and the
-example scripts. No documentation, tests, GUIs or development tools; those stay in the
+example scripts. No documentation, tests, development tools or GUIs other than `joint_gui`; those stay in the
 development repo `nlotfiy/xsarm_scripts`. `xsarm_scripts/LAB_EXPORT_COMMIT` names the
 development commit this copy was made from.
 
@@ -27,6 +27,12 @@ Then, as such an account, on the lab computer:
     ros2 run xsarm_scripts work_envelope set --min -0.30 -0.45 0.0 --max 0.60 0.45 0.70
     ros2 run xsarm_scripts work_envelope teach      # or by hand; needs the driver running
     ros2 run xsarm_scripts work_envelope show
+
+To try the envelope, move the arm joint by joint with the supervised GUI (it starts the
+driver too; a move that would leave the envelope is refused with `SUP_WORK_ENVELOPE`):
+
+    ros2 launch xsarm_scripts joint_gui.launch.py robot_model:=vx300s
+    ros2 launch xsarm_scripts joint_gui.launch.py use_sim:=true      # simulated arm first
 
 ## Run the arm
 
