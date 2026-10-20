@@ -2,11 +2,14 @@
 # Install ROS 2 Humble, the Interbotix arm packages and the lab copy of xsarm_scripts on an
 # Ubuntu 22.04 lab computer, for every user account on it.
 #
-#   sudo ./install_lab_computer.sh --domain-id N [--pkg DIR]
+#   sudo ./install_lab_computer.sh --domain-id N [--admin USER]... [--pkg DIR]
 #
 #   --domain-id N  ROS_DOMAIN_ID of this computer (1-101), different on every lab computer: an
 #                  arm answers only to computers on its domain, so students cannot move each
 #                  other's arms, and the instructor reaches station N with `export ROS_DOMAIN_ID=N`.
+#   --admin USER   account that may change the work envelope (added to the group xsarm-admin;
+#                  takes effect at its next login). Repeat for each instructor. Accounts added
+#                  on an earlier run stay members.
 #   --pkg DIR      the exported xsarm_scripts package (default: ./xsarm_scripts next to this
 #                  script, made by export_lab_package.sh)
 #
@@ -16,7 +19,8 @@
 #   /usr/local/lib/python3.10  modern_robotics (pip, system-wide)
 #   /etc/udev/rules.d          Interbotix udev rules (/dev/ttyDXL, serial ports readable by all)
 #   /etc/ros2_lab.bash         environment, sourced for every user from /etc/bash.bashrc
-#   /etc/xsarm_scripts/work_envelope.yaml   the arm's work envelope (shared by all users)
+#   /etc/xsarm_scripts/work_envelope.yaml   the arm's work envelope: read by every user,
+#                              changed only by members of the group xsarm-admin
 #
 # Re-running the script is safe: it updates xsarm_scripts and rebuilds.
 set -euo pipefail
@@ -27,6 +31,7 @@ ENVELOPE=/etc/xsarm_scripts/work_envelope.yaml
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PKG="$HERE/xsarm_scripts"
 DOMAIN_ID=""
+ADMINS=()
 
 # the Interbotix commits the lab package was tested with
 declare -A REPOS=(
@@ -39,6 +44,7 @@ declare -A REPOS=(
 while [ $# -gt 0 ]; do
   case "$1" in
     --domain-id) DOMAIN_ID="$2"; shift 2 ;;
+    --admin) ADMINS+=("$2"); shift 2 ;;
     --pkg) PKG="$(cd "$2" && pwd)"; shift 2 ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -49,6 +55,9 @@ done
 [ "$VERSION_CODENAME" = jammy ] || { echo "ROS 2 Humble needs Ubuntu 22.04 (jammy)" >&2; exit 1; }
 [[ "$DOMAIN_ID" =~ ^[0-9]+$ ]] && [ "$DOMAIN_ID" -ge 1 ] && [ "$DOMAIN_ID" -le 101 ] || \
   { echo "give this computer's ROS_DOMAIN_ID: --domain-id N (1-101)" >&2; exit 2; }
+for user in "${ADMINS[@]}"; do
+  id "$user" >/dev/null 2>&1 || { echo "--admin: no account $user" >&2; exit 2; }
+done
 [ -f "$PKG/package.xml" ] || { echo "no package at $PKG (run export_lab_package.sh first)" >&2; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
 
@@ -122,8 +131,18 @@ chmod 644 "$ENV_FILE"
 # /etc/bash.bashrc is read by every interactive bash (every terminal window), for every user
 grep -qF "$ENV_FILE" /etc/bash.bashrc || \
   printf '\n[ -f %s ] && . %s\n' "$ENV_FILE" "$ENV_FILE" >> /etc/bash.bashrc
+# the envelope folder belongs to the group xsarm-admin: its members may set the envelope
+# (work_envelope replaces the file), everyone else may only read it
+groupadd -f xsarm-admin
+for user in "${ADMINS[@]}"; do
+  usermod -aG xsarm-admin "$user"
+done
 mkdir -p "$(dirname "$ENVELOPE")"
-chmod 755 "$(dirname "$ENVELOPE")"
+chown root:xsarm-admin "$(dirname "$ENVELOPE")"
+chmod 2775 "$(dirname "$ENVELOPE")"
+if [ -f "$ENVELOPE" ]; then
+  chgrp xsarm-admin "$ENVELOPE" && chmod 664 "$ENVELOPE"
+fi
 
 echo "== 8. clock synchronisation"
 # the supervisor judges lost feedback by the age of the joint states' time stamps; when a script
@@ -136,4 +155,5 @@ fi
 
 echo
 echo "Done (ROS_DOMAIN_ID=$DOMAIN_ID). Open a new terminal (any user) and check:  ros2 pkg prefix xsarm_scripts"
-[ -f "$ENVELOPE" ] || echo "No work envelope yet: install one at $ENVELOPE (see the instructions)."
+echo "May change the work envelope (group xsarm-admin): $(getent group xsarm-admin | cut -d: -f4)"
+[ -f "$ENVELOPE" ] || echo "No work envelope yet: a member of xsarm-admin sets it with 'ros2 run xsarm_scripts work_envelope'."

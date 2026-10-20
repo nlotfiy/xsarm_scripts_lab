@@ -7,7 +7,7 @@ import time
 
 from xsarm_scripts.supervisor.envelope import (
     AXES, checked_envelope, envelope_path, excess, grow_to_contain, load_envelope, rest_path,
-    save_envelope)
+    save_envelope, writable)
 from xsarm_scripts.supervisor.geometry import generate_urdf, RobotGeometry
 
 """
@@ -73,7 +73,8 @@ def finish(geometry, box, points, padding, out, confirm):
         print('Not saved.')
         return
     print(f'Saved: {save_envelope(box, out, points)}')
-    print('Supervised scripts started from now on use it.')
+    print('Supervised scripts use it from their next command (if the driver runs with '
+          '`ros2 launch xsarm_scripts arm.launch.py`), otherwise from their next start.')
 
 
 def show(args):
@@ -160,6 +161,14 @@ def main():
         command.add_argument('--padding', type=float, default=0.0,
                              help='distance [m] added on every side of the corners given')
     args = parser.parse_args()
+    if args.command != 'show':
+        # before anything else: `teach` would otherwise release the arm for nothing
+        problem = writable(args.file)
+        if problem:
+            sys.exit(f'Cannot change the work envelope {args.file}: {problem}.\n'
+                     'On a lab computer, members of the group xsarm-admin may change it; the '
+                     'lab install adds them with `sudo ./install_lab_computer.sh --admin USER '
+                     '...` (log out and in again afterwards).')
     try:
         args.run(args)
     except ValueError as problem:

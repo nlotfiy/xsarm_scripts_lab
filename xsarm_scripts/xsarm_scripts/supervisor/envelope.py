@@ -11,6 +11,7 @@ docs/work_envelope.md for the procedure.
 
 import os
 import socket
+import tempfile
 
 import numpy as np
 import yaml
@@ -94,18 +95,46 @@ def checked_envelope(data, source='work envelope'):
 def save_envelope(box, path=None, taught_points=()):
     """Write the work envelope, with the points it was taught from as a record."""
     path = path or envelope_path()
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f:
-        f.write('# Work envelope of the arm, written by `ros2 run xsarm_scripts work_envelope`.\n'
-                '# A box in the base frame [m]; the supervisor refuses any move that takes a\n'
-                '# moving link outside it (SUP_WORK_ENVELOPE). Delete this file, or run\n'
-                '# `work_envelope clear`, to remove the envelope.\n')
-        yaml.safe_dump({
-            'min': [round(float(v), 4) for v in box['min']],
-            'max': [round(float(v), 4) for v in box['max']],
-            'taught_points': [[round(float(v), 4) for v in point] for point in taught_points],
-        }, f, sort_keys=False, default_flow_style=None)
+    folder = os.path.dirname(os.path.abspath(path))
+    os.makedirs(folder, exist_ok=True)
+    # written to a new file that then replaces the old one, so `envelope_server` never reads
+    # half a file, and a member of the folder's group can replace a file another member wrote
+    handle, temporary = tempfile.mkstemp(prefix='.work_envelope.', dir=folder)
+    try:
+        os.fchmod(handle, 0o644)   # every user's scripts read it
+        with os.fdopen(handle, 'w') as f:
+            f.write('# Work envelope of the arm, written by\n'
+                    '# `ros2 run xsarm_scripts work_envelope`.\n'
+                    '# A box in the base frame [m]; the supervisor refuses any move that takes a\n'
+                    '# moving link outside it (SUP_WORK_ENVELOPE). Delete this file, or run\n'
+                    '# `work_envelope clear`, to remove the envelope.\n')
+            yaml.safe_dump({
+                'min': [round(float(v), 4) for v in box['min']],
+                'max': [round(float(v), 4) for v in box['max']],
+                'taught_points': [[round(float(v), 4) for v in point] for point in taught_points],
+            }, f, sort_keys=False, default_flow_style=None)
+        os.replace(temporary, path)
+    except BaseException:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+        raise
     return path
+
+
+def writable(path=None):
+    """
+    Return why the envelope file cannot be written or removed by this account, or `None`.
+
+    Changing the file takes write permission on its folder (the file is replaced, not
+    edited), or, if the folder does not exist yet, on the nearest folder above it.
+    """
+    path = path or envelope_path()
+    folder = os.path.dirname(os.path.abspath(path))
+    while not os.path.exists(folder):
+        folder = os.path.dirname(folder)
+    if os.access(folder, os.W_OK | os.X_OK):
+        return None
+    return f'this account may not change files in {folder}'
 
 
 def excess(geometry, box, q, held=None):

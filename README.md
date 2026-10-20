@@ -16,11 +16,16 @@ Everything goes in system locations (`/opt/ros/humble`, `/opt/interbotix_ws`,
 `/etc/ros2_lab.bash`), so every account gets ROS 2 and the arm in each new terminal.
 Re-run the same command after `git pull` to update.
 
-**Work envelope:** shared by all users in `/etc/xsarm_scripts/work_envelope.yaml`; students can
-read it, not change it. To set it (on the lab computer):
+**Work envelope:** one per lab computer, in `/etc/xsarm_scripts/work_envelope.yaml`. Every
+user's scripts read it; only members of the group `xsarm-admin` may change it. Add instructors
+with `--admin` (repeatable; they must log out and in again):
 
-    ros2 run xsarm_scripts work_envelope teach --file ~/work_envelope.yaml   # or: set ...
-    sudo cp ~/work_envelope.yaml /etc/xsarm_scripts/work_envelope.yaml
+    sudo ./install_lab_computer.sh --domain-id 2 --admin nima
+
+Then, as such an account, on the lab computer:
+
+    ros2 run xsarm_scripts work_envelope set --min -0.30 -0.45 0.0 --max 0.60 0.45 0.70
+    ros2 run xsarm_scripts work_envelope teach      # or by hand; needs the driver running
     ros2 run xsarm_scripts work_envelope show
 
 ## Run the arm
