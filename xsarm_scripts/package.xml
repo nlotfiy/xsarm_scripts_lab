@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>xsarm_scripts</name>
+  <version>0.0.0</version>
+  <description>Custom scripts for controlling the Interbotix VX300S arm.</description>
+  <maintainer email="nima.st36@gmail.com">nima</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>interbotix_xs_msgs</exec_depend>
+  <exec_depend>interbotix_xs_modules</exec_depend>
+  <exec_depend>interbotix_common_modules</exec_depend>
+  <exec_depend>interbotix_xs_sdk</exec_depend>
+  <exec_depend>interbotix_xsarm_control</exec_depend>
+  <exec_depend>interbotix_xsarm_descriptions</exec_depend>
+  <exec_depend>urdfdom_py</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

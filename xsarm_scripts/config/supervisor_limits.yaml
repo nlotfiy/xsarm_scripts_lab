@@ -1,0 +1,33 @@
+# Independent limit floor for the arm supervisor (task 1.6 in docs/supervisor_steps.md).
+#
+# The supervisor enforces the tighter of these values and the limits the driver reports from
+# the URDF, so loosening the URDF cannot loosen what is enforced. Positions are [lower, upper]
+# in rad, velocity is in rad/s for every arm joint.
+#
+# vx300s: about 2 deg inside the URDF limits, except the shoulder lower limit, which is the
+# sleep pose itself (-1.85 rad). The URDF velocity limit is 3.14 rad/s.
+vx300s:
+  position:
+    waist: [-3.10, 3.10]
+    shoulder: [-1.85, 1.22]
+    elbow: [-1.73, 1.57]
+    forearm_roll: [-3.10, 3.10]
+    wrist_angle: [-1.83, 2.20]
+    wrist_rotate: [-3.10, 3.10]
+  velocity: 2.5
+  # A move is stopped when a motor draws more than this [mA] for 3 readings in a row
+  # (SUP_OVERCURRENT). From `current_profile` on the arm, 2026-10-14
+  # (~/interbotix_ws/hw_checks/current_profile_20261014_170330.csv), empty gripper: the
+  # larger of 1.5 x the largest current seen and that current + 500 mA, rounded up to 50.
+  # Largest seen: waist 1590 (fast swing), shoulder 2561 (fast shoulder and elbow move),
+  # elbow 831, forearm_roll 167, wrist_angle 253, wrist_rotate 73. Only the primary motor of
+  # the shoulder and elbow pairs is reported. The motors' own Current_Limit registers, read
+  # 2026-10-14: 2047 (5506 mA) on waist, shoulder, elbow, forearm_roll and wrist_angle, 1193
+  # (3209 mA) on wrist_rotate; every limit here is well below them.
+  current_limit_ma:
+    waist: 2400
+    shoulder: 3850
+    elbow: 1350
+    forearm_roll: 700
+    wrist_angle: 800
+    wrist_rotate: 600

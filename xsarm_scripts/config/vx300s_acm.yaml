@@ -1,0 +1,177 @@
+# Allowed-collision matrix of the vx300s, written by
+# xsarm_scripts/supervisor/build_acm.py. Do not edit by hand.
+# allowed: pairs the self-collision check skips. dropped: pairs the MoveIt
+# SRDF disables although their meshes collided in sampling, so they are
+# checked. checked: every other pair. mesh_collisions is out of `samples`
+# random configurations; closest_mm is the smallest mesh-to-mesh distance
+# over `distance_samples` of them.
+vx300s:
+  samples: 2000000
+  distance_samples: 100000
+  seed: 0
+  allowed:
+  - links: [gripper_bar_link, gripper_link]
+    reason: Rigid
+  - links: [base_link, shoulder_link]
+    mesh_collisions: 2000000
+    reason: Adjacent
+  - links: [gripper_bar_link, gripper_prop_link]
+    mesh_collisions: 0
+    reason: Adjacent
+  - links: [gripper_bar_link, left_finger_link]
+    mesh_collisions: 2000000
+    reason: Adjacent
+  - links: [gripper_bar_link, right_finger_link]
+    mesh_collisions: 2000000
+    reason: Adjacent
+  - links: [gripper_link, gripper_prop_link]
+    mesh_collisions: 0
+    reason: Adjacent
+  - links: [gripper_link, wrist_link]
+    mesh_collisions: 2000000
+    reason: Adjacent
+  - links: [left_finger_link, right_finger_link]
+    mesh_collisions: 0
+    reason: Adjacent
+  - links: [lower_forearm_link, upper_forearm_link]
+    mesh_collisions: 2000000
+    reason: Adjacent
+  - links: [lower_forearm_link, wrist_link]
+    mesh_collisions: 2000000
+    reason: Adjacent
+  - links: [shoulder_link, upper_arm_link]
+    mesh_collisions: 2000000
+    reason: Adjacent
+  - links: [upper_arm_link, upper_forearm_link]
+    mesh_collisions: 2000000
+    reason: Adjacent
+  - links: [base_link, upper_arm_link]
+    mesh_collisions: 0
+    closest_mm: 7.5
+    reason: Never
+  - links: [gripper_bar_link, lower_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 23.7
+    reason: Never
+  - links: [gripper_bar_link, upper_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 14.2
+    reason: Never
+  - links: [gripper_bar_link, wrist_link]
+    mesh_collisions: 0
+    closest_mm: 17.3
+    reason: Never
+  - links: [gripper_link, left_finger_link]
+    mesh_collisions: 0
+    closest_mm: 13.1
+    reason: Never
+  - links: [gripper_link, lower_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 13.0
+    reason: Never
+  - links: [gripper_link, right_finger_link]
+    mesh_collisions: 0
+    closest_mm: 13.1
+    reason: Never
+  - links: [gripper_link, upper_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 30.8
+    reason: Never
+  - links: [gripper_prop_link, left_finger_link]
+    mesh_collisions: 0
+    closest_mm: 4.9
+    reason: Never
+  - links: [gripper_prop_link, lower_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 51.9
+    reason: Never
+  - links: [gripper_prop_link, right_finger_link]
+    mesh_collisions: 0
+    closest_mm: 4.9
+    reason: Never
+  - links: [gripper_prop_link, upper_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 50.7
+    reason: Never
+  - links: [gripper_prop_link, wrist_link]
+    mesh_collisions: 0
+    closest_mm: 46.0
+    reason: Never
+  - links: [left_finger_link, lower_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 45.3
+    reason: Never
+  - links: [left_finger_link, upper_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 35.6
+    reason: Never
+  - links: [left_finger_link, wrist_link]
+    mesh_collisions: 0
+    closest_mm: 55.9
+    reason: Never
+  - links: [lower_forearm_link, right_finger_link]
+    mesh_collisions: 0
+    closest_mm: 44.3
+    reason: Never
+  - links: [right_finger_link, upper_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 36.6
+    reason: Never
+  - links: [right_finger_link, wrist_link]
+    mesh_collisions: 0
+    closest_mm: 55.9
+    reason: Never
+  - links: [shoulder_link, upper_forearm_link]
+    mesh_collisions: 0
+    closest_mm: 54.5
+    reason: Never
+  - links: [upper_forearm_link, wrist_link]
+    mesh_collisions: 0
+    closest_mm: 50.4
+    reason: Never
+  dropped: []
+  checked:
+  - links: [base_link, gripper_bar_link]
+    mesh_collisions: 91909
+  - links: [base_link, gripper_link]
+    mesh_collisions: 63537
+  - links: [base_link, gripper_prop_link]
+    mesh_collisions: 32041
+  - links: [base_link, left_finger_link]
+    mesh_collisions: 44680
+  - links: [base_link, lower_forearm_link]
+    mesh_collisions: 60417
+  - links: [base_link, right_finger_link]
+    mesh_collisions: 44461
+  - links: [base_link, upper_forearm_link]
+    mesh_collisions: 1837
+  - links: [base_link, wrist_link]
+    mesh_collisions: 80083
+  - links: [gripper_bar_link, shoulder_link]
+    mesh_collisions: 38819
+  - links: [gripper_bar_link, upper_arm_link]
+    mesh_collisions: 19336
+  - links: [gripper_link, shoulder_link]
+    mesh_collisions: 29780
+  - links: [gripper_link, upper_arm_link]
+    mesh_collisions: 11916
+  - links: [gripper_prop_link, shoulder_link]
+    mesh_collisions: 10067
+  - links: [gripper_prop_link, upper_arm_link]
+    mesh_collisions: 3091
+  - links: [left_finger_link, shoulder_link]
+    mesh_collisions: 12752
+  - links: [left_finger_link, upper_arm_link]
+    mesh_collisions: 5713
+  - links: [lower_forearm_link, shoulder_link]
+    mesh_collisions: 27446
+  - links: [lower_forearm_link, upper_arm_link]
+    mesh_collisions: 8077
+  - links: [right_finger_link, shoulder_link]
+    mesh_collisions: 12681
+  - links: [right_finger_link, upper_arm_link]
+    mesh_collisions: 5433
+  - links: [shoulder_link, wrist_link]
+    mesh_collisions: 49193
+  - links: [upper_arm_link, wrist_link]
+    mesh_collisions: 7160
