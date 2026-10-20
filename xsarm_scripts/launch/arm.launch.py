@@ -143,9 +143,19 @@ def launch_setup(context, *args, **kwargs):
         output={'both': 'screen'},
     )
 
+    # the work envelope of this computer (the one the arm is plugged into), for every
+    # supervised script that drives the arm, wherever it runs
+    envelope_server_node = Node(
+        package='xsarm_scripts',
+        executable='envelope_server',
+        arguments=['--robot-name', robot_name_launch_arg],
+        output={'both': 'screen'},
+    )
+
     return [
         xs_sdk_node,
         xs_sdk_sim_node,
+        envelope_server_node,
         xsarm_description_launch_include,
     ]
 

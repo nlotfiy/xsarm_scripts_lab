@@ -36,12 +36,10 @@ From another computer on the same network, a script reaches station 11 with:
     export ROS_DOMAIN_ID=11
     ros2 run xsarm_scripts lab_template
 
-The supervisor runs where the script runs, so it uses **that** computer's work envelope file
-(`$XSARM_WORK_ENVELOPE`, else `~/.config/xsarm_scripts/work_envelope.yaml`), not the lab
-computer's. Copy the station's file over and point to it:
-
-    scp lab-pc-11:/etc/xsarm_scripts/work_envelope.yaml ~/.config/xsarm_scripts/station11.yaml
-    export XSARM_WORK_ENVELOPE=~/.config/xsarm_scripts/station11.yaml
+The work envelope that holds is always the station's: `arm.launch.py` publishes the lab
+computer's envelope file, and the supervisor uses it wherever the script runs (its start-up log
+says `Work envelope (from <lab computer>, /etc/xsarm_scripts/work_envelope.yaml): ...`). If the
+driver was started some other way, the script warns and falls back to its own computer's file.
 
 Both clocks must be NTP-synchronised (`timedatectl`): the supervisor stops on lost feedback
 by the age of the joint states' time stamps.

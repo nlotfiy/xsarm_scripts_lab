@@ -1,13 +1,16 @@
 """
 Work envelope of the arm: a box in the base frame that every moving link has to stay inside.
 
-The envelope is a setting of the machine, not of a script. It is kept in
-`~/.config/xsarm_scripts/work_envelope.yaml` (or the file named by `XSARM_WORK_ENVELOPE`),
-written by `ros2 run xsarm_scripts work_envelope`, and loaded by every
-`SupervisedManipulator`. See docs/work_envelope.md for the procedure.
+The envelope is a setting of the arm's computer, not of a script. It is kept in
+`~/.config/xsarm_scripts/work_envelope.yaml` (or the file named by `XSARM_WORK_ENVELOPE`) and
+written by `ros2 run xsarm_scripts work_envelope`. `arm.launch.py` runs `envelope_server` next
+to the driver, which publishes that file (`station_message`), and every `SupervisedManipulator`
+uses what it publishes (`read_station_message`), on whichever computer the script runs. See
+docs/work_envelope.md for the procedure.
 """
 
 import os
+import socket
 
 import numpy as np
 import yaml
@@ -37,6 +40,42 @@ def load_envelope(path=None):
     with open(path) as f:
         data = yaml.safe_load(f) or {}
     return checked_envelope(data, path)
+
+
+def station_message(path=None):
+    """
+    Describe the envelope file of this computer, as `envelope_server` publishes it.
+
+    :param path: (optional) file to describe instead of this machine's envelope
+    :return: YAML text with `host`, `file`, and `envelope` (a box, or null when none is set) or
+        `error` (why the file is not a box)
+    """
+    path = path or envelope_path()
+    message = {'host': socket.gethostname(), 'file': path}
+    try:
+        message['envelope'] = load_envelope(path)
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        message['error'] = str(error)
+    return yaml.safe_dump(message, default_flow_style=None, sort_keys=False)
+
+
+def read_station_message(text):
+    """
+    Read a message of `envelope_server`.
+
+    :return: `(box or None, host, file)`
+    :raises ValueError: if the station's file is not a box, or the message is not one of
+        `station_message`
+    """
+    try:
+        message = yaml.safe_load(text)
+        host, path = message['host'], message['file']
+    except (yaml.YAMLError, TypeError, KeyError):
+        raise ValueError(f'not a work envelope message: {text!r}') from None
+    if 'error' in message:
+        raise ValueError(f"work envelope of {host} ({path}): {message['error']}")
+    box = message.get('envelope')
+    return (None if box is None else checked_envelope(box, f'{host}:{path}')), host, path
 
 
 def checked_envelope(data, source='work envelope'):

@@ -30,6 +30,7 @@ setup(
             'park_arm = xsarm_scripts.park_arm:main',
             'driver_guard = xsarm_scripts.driver_guard:main',
             'estop = xsarm_scripts.estop:main',
+            'envelope_server = xsarm_scripts.envelope_server:main',
             'supervised_demo = xsarm_scripts.supervised_demo:main',
         ],
     },

@@ -11,19 +11,24 @@ See docs/supervisor_steps.md for the checks that later tasks add to `_command`.
 
 import math
 import os
+import socket
+import threading
 import time
 
 from ament_index_python.packages import get_package_share_directory
 import interbotix_common_modules.angle_manipulation as ang
+from interbotix_common_modules.common_robot.robot import interbotix_is_up
 from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS
 from interbotix_xs_msgs.msg import JointGroupCommand
 import modern_robotics as mr
 import numpy as np
+import rclpy
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rclpy.time import Time
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 from xsarm_scripts.supervisor.collision import SelfCollisionModel
-from xsarm_scripts.supervisor.envelope import checked_envelope, excess, load_envelope
+from xsarm_scripts.supervisor.envelope import (
+    checked_envelope, envelope_path, excess, load_envelope, read_station_message)
 from xsarm_scripts.supervisor.geometry import generate_urdf, HELD, RobotGeometry
 from xsarm_scripts.supervisor.ik import AnalyticIK, Unreachable
 import yaml
@@ -74,6 +79,16 @@ ESTOP_QOS = QoSProfile(
 def estop_topic(robot_name):
     """Return the topic the software e-stop's state is published on."""
     return f'/{robot_name}/supervisor/estop'
+
+
+# The work envelope of the arm's computer: `envelope_server` (started by arm.launch.py)
+# publishes it, kept for late subscribers like the e-stop's state.
+ENVELOPE_QOS = ESTOP_QOS
+
+
+def envelope_topic(robot_name):
+    """Return the topic the arm's computer publishes its work envelope on."""
+    return f'/{robot_name}/supervisor/work_envelope'
 
 
 # Weight of each joint's travel when choosing among the joint solutions of a pose: the joints
@@ -238,6 +253,9 @@ class ArmSupervisor:
         self._work_envelope = None
         if work_envelope is not None and geometry is not None:
             self._work_envelope = checked_envelope(work_envelope)
+        # a new envelope from `set_work_envelope`, as a 1-tuple, taken up at the next command
+        self._next_envelope = None
+        self._envelope_lock = threading.Lock()
         self._envelope_tolerance = envelope_tolerance
         self._ik = ik
         self._held = None  # object in the gripper, see `attach_object`
@@ -663,6 +681,20 @@ class ArmSupervisor:
                     'link': link, 'path_fraction': round(i / len(path), 2)}
                 raise self._refuse(SUP_TABLE_CLEARANCE, call, detail)
 
+    def set_work_envelope(self, box):
+        """
+        Replace the work envelope; the commands that follow are held to the new one.
+
+        A move in progress keeps the envelope it was checked against. Safe to call from any
+        thread (the envelope topic's callback calls it).
+
+        :param box: `{'min': [x, y, z], 'max': [x, y, z]}` [m], or `None` for no envelope
+        :raises ValueError: if `box` is not a box
+        """
+        box = None if box is None else checked_envelope(box)
+        with self._envelope_lock:
+            self._next_envelope = (box,)
+
     def _check_envelope(self, call, path):
         """
         Refuse a path that takes a moving link of the commanded arm outside the work envelope.
@@ -674,6 +706,10 @@ class ArmSupervisor:
         :param path: joint position lists the move passes through, without its start
         :raises MotionRejected: with code `SUP_WORK_ENVELOPE`; nothing has been sent
         """
+        with self._envelope_lock:
+            if self._next_envelope is not None and self._geometry is not None:
+                self._work_envelope = self._next_envelope[0]
+            self._next_envelope = None
         if self._work_envelope is None:
             return
         names = self._arm.group_info.joint_names
@@ -1203,17 +1239,27 @@ class SupervisedManipulator:
         :param kwargs: any of `SUPERVISOR_ARGS` (see `ArmSupervisor`), and any other argument
             of `InterbotixManipulatorXS`. `accel_time` defaults to 0.15 s instead of that
             class's 0.3 s: on the real arm it shortens the travel after a hold by a third.
-            `work_envelope` is this machine's envelope unless given (see
-            `supervisor/envelope.py`); pass `None` to run without one. `speed_limit` [rad/s]
+            `work_envelope` is the envelope the arm's computer publishes unless given (see
+            `supervisor/envelope.py`); pass `None` to run without one. `envelope_wait` [s]
+            (default 3) is how long to wait for that envelope; if none comes (the driver was
+            not started with arm.launch.py of xsarm_scripts), this computer's envelope file
+            is used, with a warning. `speed_limit` [rad/s]
             lowers the joint speed limit for this script; moves asked for faster are slowed
             to it
         """
         kwargs.setdefault('accel_time', 0.15)
         speed_limit = kwargs.pop('speed_limit', None)
-        work_envelope = kwargs.pop('work_envelope') if 'work_envelope' in kwargs \
-            else load_envelope()
+        envelope_given = 'work_envelope' in kwargs
+        work_envelope = kwargs.pop('work_envelope', None)
+        envelope_wait = kwargs.pop('envelope_wait', 3.0)
         supervisor_args = {k: kwargs.pop(k) for k in self.SUPERVISOR_ARGS if k in kwargs}
         self._bot = InterbotixManipulatorXS(robot_model=robot_model, **kwargs)
+        self.arm = None
+        self._station_message = self._station_used = None
+        if envelope_given:
+            source = 'given by the script'
+        else:
+            work_envelope, source = self._station_envelope(envelope_wait)
         geometry = RobotGeometry(
             generate_urdf(robot_model, kwargs.get('robot_name') or robot_model))
         path = os.path.join(
@@ -1231,11 +1277,10 @@ class SupervisedManipulator:
             self_collision=SelfCollisionModel.load(geometry, robot_model),
             work_envelope=work_envelope, ik=AnalyticIK(self._bot.arm.robot_des),
             **supervisor_args)
-        if work_envelope is not None:
-            low, high = work_envelope['min'], work_envelope['max']
-            self._bot.get_node().get_logger().info(
-                f'Work envelope: x {low[0]:.3f} to {high[0]:.3f}, '
-                f'y {low[1]:.3f} to {high[1]:.3f}, z {low[2]:.3f} to {high[2]:.3f} m')
+        self._log_envelope(work_envelope, source)
+        if self._station_message is not None:
+            # a change that came while the supervisor was being built
+            self._apply_station_message(self._station_message)
         self.gripper = getattr(self._bot, 'gripper', None)
         # The e-stop's state is kept by its publisher (transient local), so a script started
         # while it is pressed learns so at once.
@@ -1246,6 +1291,71 @@ class SupervisedManipulator:
     def get_node(self):
         """Return the ROS node used by this robot."""
         return self._bot.get_node()
+
+    def _log_envelope(self, box, source):
+        if box is None:
+            self.get_node().get_logger().warn(f'No work envelope ({source})')
+            return
+        low, high = box['min'], box['max']
+        self.get_node().get_logger().info(
+            f'Work envelope ({source}): x {low[0]:.3f} to {high[0]:.3f}, '
+            f'y {low[1]:.3f} to {high[1]:.3f}, z {low[2]:.3f} to {high[2]:.3f} m')
+
+    def _apply_station_message(self, text):
+        """Pass a changed envelope of the arm's computer on to the supervisor."""
+        if text == self._station_used:
+            return
+        self._station_used = text
+        try:
+            box, host, path = read_station_message(text)
+        except ValueError as error:
+            self.get_node().get_logger().error(
+                f'{error}; the previous work envelope stays in force')
+            return
+        self.arm.set_work_envelope(box)
+        self._log_envelope(box, f'changed on {host}, {path}; from the next command')
+
+    def _station_envelope(self, wait):
+        """
+        Return the work envelope the arm's computer publishes, and where it came from.
+
+        The subscription stays: a later change on the arm's computer is passed on to the
+        supervisor and applies from the next command. If nothing is published within `wait`
+        seconds, this computer's envelope file is returned instead.
+
+        :raises ValueError: if the arm's computer reports an envelope file that is not a box
+        """
+        node = self.get_node()
+        topic = envelope_topic(self._bot.core.robot_name)
+        received = threading.Event()
+
+        def receive(message):
+            self._station_message = message.data
+            received.set()
+            if self.arm is not None:
+                self._apply_station_message(message.data)
+
+        self._envelope_subscription = node.create_subscription(
+            String, topic, receive, ENVELOPE_QOS)
+        deadline = time.monotonic() + wait
+        while not received.is_set() and time.monotonic() < deadline:
+            if interbotix_is_up():
+                received.wait(0.05)     # robot_startup() already spins the node
+            else:
+                rclpy.spin_once(node, timeout_sec=0.05)
+        if received.is_set():
+            self._station_used = self._station_message
+            box, host, path = read_station_message(self._station_used)
+            source = f'from {host}, {path}'
+            local = envelope_path()
+            if os.path.exists(local) and host != socket.gethostname():
+                node.get_logger().info(f'{local} on this computer is not used')
+            return box, source
+        node.get_logger().warn(
+            f'No work envelope from the arm\'s computer on {topic} within {wait:.0f} s '
+            '(was the driver started with `ros2 launch xsarm_scripts arm.launch.py`?). '
+            f'Using this computer\'s file {envelope_path()} instead.')
+        return load_envelope(), f'this computer\'s file {envelope_path()}'
 
     def shutdown(self):
         """Shut the robot's node down, as `InterbotixManipulatorXS.shutdown` does."""

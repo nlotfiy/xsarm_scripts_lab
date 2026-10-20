@@ -106,7 +106,8 @@ def main():
                         help='command that parks the arm (default: park_arm)')
     args = parser.parse_args(arguments[:split])
     park_command = args.park_command or [
-        sys.executable, '-m', 'xsarm_scripts.park_arm', '--robot-model', args.robot_model,
+        sys.executable, '-m', 'xsarm_scripts.park_arm', '--local-envelope',
+        '--robot-model', args.robot_model,
         *(['--robot-name', args.robot_name] if args.robot_name else [])]
     sys.exit(Guard(arguments[split + 1:], park_command, args.park_timeout).run())
 

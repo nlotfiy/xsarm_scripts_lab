@@ -7,6 +7,7 @@ import time
 
 from interbotix_common_modules.common_robot.robot import robot_shutdown, robot_startup
 from xsarm_scripts.supervisor import MotionRejected, SupervisedManipulator
+from xsarm_scripts.supervisor.envelope import load_envelope
 
 """
 Put the arm in its sleep pose: home first, then sleep, through the supervisor.
@@ -71,8 +72,14 @@ def main():
     parser = argparse.ArgumentParser(description='Put the arm in its sleep pose.')
     parser.add_argument('--robot-model', default='vx300s')
     parser.add_argument('--robot-name', default=None)
+    parser.add_argument('--local-envelope', action='store_true',
+                        help="use this computer's envelope file instead of waiting for the "
+                             "one the arm's computer publishes (for driver_guard, which runs "
+                             'on the arm\'s computer as envelope_server stops)')
     args = parser.parse_args()
-    bot = SupervisedManipulator(robot_model=args.robot_model, robot_name=args.robot_name)
+    envelope = {'work_envelope': load_envelope()} if args.local_envelope else {}
+    bot = SupervisedManipulator(
+        robot_model=args.robot_model, robot_name=args.robot_name, **envelope)
     robot_startup()
     try:
         parked = park(bot)

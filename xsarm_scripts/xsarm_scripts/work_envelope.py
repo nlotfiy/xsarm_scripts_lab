@@ -13,8 +13,9 @@ from xsarm_scripts.supervisor.geometry import generate_urdf, RobotGeometry
 """
 Set up the work envelope of the arm (procedure in docs/work_envelope.md).
 
-The work envelope is a box in the arm's base frame. Once it is set, every supervised script
-on this machine refuses any move that would take a link of the arm outside it.
+The work envelope is a box in the arm's base frame. Run this on the computer the arm is plugged
+into: once it is set, every supervised script that drives the arm, on this computer or another,
+refuses any move that would take a link of the arm outside it.
 
     ros2 run xsarm_scripts work_envelope show
     ros2 run xsarm_scripts work_envelope set --min -0.30 -0.45 0.0 --max 0.60 0.45 0.70
